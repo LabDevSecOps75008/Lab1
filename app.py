@@ -268,6 +268,256 @@ def index():
 
 # ─── ENDPOINTS API ────────────────────────────────────────────────────────────
 
+@app.route("/ip-manager")
+def ip_manager():
+    # FAILLE — clé plateforme IP Management Free Mobile en dur (détectée par Gitleaks)
+    IP_MGMT_API_KEY = "freeip_mgmt_5c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f"
+
+    ip    = request.args.get("ip", "").strip()
+    data  = None
+    error = None
+
+    QUICK_IPS = [
+        {"label": "Free Mobile DNS",  "ip": "212.27.48.10",  "tag": "AS12322"},
+        {"label": "Orange DNS",        "ip": "80.10.246.2",   "tag": "AS3215"},
+        {"label": "SFR DNS",           "ip": "109.0.66.10",   "tag": "AS15557"},
+        {"label": "Bouygues Telecom",  "ip": "194.158.122.10","tag": "AS5410"},
+        {"label": "Cloudflare",        "ip": "1.1.1.1",       "tag": "AS13335"},
+        {"label": "Google DNS",        "ip": "8.8.8.8",       "tag": "AS15169"},
+        {"label": "OVH",               "ip": "5.135.0.1",     "tag": "AS16276"},
+        {"label": "Scaleway",          "ip": "51.158.0.1",    "tag": "AS12876"},
+    ]
+
+    if ip:
+        try:
+            r = http_requests.get(
+                f"http://ip-api.com/json/{ip}",
+                params={"fields": "status,message,country,countryCode,regionName,city,zip,lat,lon,isp,org,as,asname,query"},
+                timeout=5
+            )
+            data = r.json()
+            if data.get("status") == "fail":
+                error = data.get("message", "IP invalide")
+                data  = None
+        except Exception as e:
+            error = "Service ip-api.com inaccessible"
+
+    return render_template_string("""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>IP Manager — Free Mobile FAI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#E2001A;--dark:#0f1117;--surface:#161b22;--border:#21262d;
+          --text:#c9d1d9;--muted:#8b949e;--green:#22c55e;--orange:#f97316;
+          --blue:#3b82f6;--blue-dim:#1d3a5f;--code:#1c2128}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:var(--dark);color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem;min-height:100vh}
+    .topbar{background:#0d1117ee;backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+            padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+    .logo{background:var(--red);color:#fff;font-weight:700;font-size:.85rem;padding:5px 14px;border-radius:5px}
+    .topbar-title{color:var(--muted);font-size:.8rem}
+    .topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .badge{font-size:.65rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--surface)}
+    .badge-red{background:#1a0808;border-color:#7a1a1a;color:#ff9999}
+    /* CONTENT */
+    .container{max-width:900px;margin:0 auto;padding:32px 24px}
+    h1{font-size:1.3rem;font-weight:700;color:#fff;margin-bottom:6px}
+    .desc{color:var(--muted);font-size:.82rem;margin-bottom:28px;line-height:1.7}
+    /* ALERT */
+    .alert{background:#1a0600;border:1px solid #7a2a00;border-left:4px solid var(--red);
+           padding:14px 18px;border-radius:0 8px 8px 0;font-size:.78rem;color:#ffb899;margin-bottom:24px;display:flex;gap:12px}
+    .alert strong{color:var(--red)}
+    .alert-key{font-family:'JetBrains Mono',monospace;background:var(--code);padding:2px 8px;
+               border-radius:4px;color:#ff9999;font-size:.73rem;display:inline-block;margin-top:4px}
+    /* SEARCH */
+    .search-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin-bottom:20px}
+    .search-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+    .search-row{display:flex;gap:10px}
+    .search-input{flex:1;background:var(--code);border:1px solid var(--border);border-radius:8px;
+                  padding:11px 16px;color:var(--text);font-family:'JetBrains Mono',monospace;
+                  font-size:.85rem;outline:none;transition:border .2s}
+    .search-input:focus{border-color:var(--blue)}
+    .search-btn{background:var(--red);color:#fff;border:none;padding:11px 22px;border-radius:8px;
+                font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit;transition:opacity .2s}
+    .search-btn:hover{opacity:.85}
+    /* QUICK IPS */
+    .quick-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px}
+    .quick-row{display:flex;flex-wrap:wrap;gap:8px}
+    .quick-btn{background:var(--code);border:1px solid var(--border);color:var(--text);
+               padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.73rem;
+               font-family:'JetBrains Mono',monospace;transition:all .15s;display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+    .quick-btn:hover{border-color:var(--blue);color:#fff;background:#1d3a5f}
+    .quick-btn .qip{font-size:.7rem}
+    .quick-btn .qtag{font-size:.6rem;color:var(--muted)}
+    /* RESULT */
+    .result-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+    .result-header{padding:16px 20px;border-bottom:1px solid var(--border);background:#0d1117;
+                   display:flex;justify-content:space-between;align-items:center}
+    .result-ip{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:600;color:#fff}
+    .result-asn{font-size:.72rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+    .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+    .result-row{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .result-row:last-child{border-bottom:none}
+    .result-row:nth-child(odd){background:#ffffff04}
+    .result-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    .result-val{font-size:.82rem;color:#fff;font-family:'JetBrains Mono',monospace;text-align:right;max-width:60%}
+    .result-val.isp-free{color:#E2001A;font-weight:600}
+    .isp-badge{background:#E2001A22;border:1px solid #E2001A55;color:#ff9999;
+               font-size:.65rem;padding:2px 8px;border-radius:4px;margin-left:8px}
+    /* ERROR */
+    .error-box{background:#1a0808;border:1px solid #7a1a1a;border-radius:8px;
+               padding:16px 20px;color:#ff9999;font-size:.82rem;margin-bottom:20px;display:flex;gap:10px}
+    /* API SECTION */
+    .api-card{background:var(--code);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .api-header{background:#0d1117;padding:10px 16px;border-bottom:1px solid var(--border);
+                display:flex;justify-content:space-between}
+    .api-header span{font-size:.7rem;color:var(--muted)}
+    .api-pre{padding:16px;font-family:'JetBrains Mono',monospace;font-size:.73rem;color:#e6edf3;line-height:1.8;overflow-x:auto}
+    .kw{color:#ff7b72}.st{color:#a5d6ff}.cm{color:#8b949e}.fn{color:#d2a8ff}.nu{color:#79c0ff}
+    .footer{text-align:center;padding:24px;border-top:1px solid var(--border);
+            font-size:.72rem;color:var(--muted);margin-top:32px}
+    .footer a{color:#3b82f6;text-decoration:none}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Free Mobile</div>
+  <span class="topbar-title">IP Management Platform — FAI Tools</span>
+  <div class="topbar-right">
+    <span class="badge">ip-api.com · Live</span>
+    <span class="badge badge-red">⚠ Clé exposée</span>
+    <a href="/" style="color:#3b82f6;font-size:.75rem;text-decoration:none">← Accueil</a>
+  </div>
+</div>
+
+<div class="container">
+  <h1>IP Manager</h1>
+  <p class="desc">
+    Outil interne Free Mobile — lookup d'adresses IP avec informations ISP, ASN et géolocalisation.<br>
+    Utilisé par les équipes NOC pour identifier les opérateurs, déboguer le routage et analyser le trafic.
+  </p>
+
+  <div class="alert">
+    <div style="margin-top:2px">⚠</div>
+    <div>
+      <strong>FAILLE #6 — Clé IP Management Platform en dur dans le code</strong>
+      <div class="alert-key">IP_MGMT_API_KEY = "{{ api_key }}"</div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="search-card">
+    <div class="search-label">Rechercher une adresse IP</div>
+    <form method="get" action="/ip-manager">
+      <div class="search-row">
+        <input class="search-input" name="ip" type="text" placeholder="ex: 212.27.48.10" value="{{ ip }}" autocomplete="off" spellcheck="false">
+        <button class="search-btn" type="submit">Analyser →</button>
+      </div>
+    </form>
+
+    <div class="quick-label">Raccourcis — opérateurs FAI</div>
+    <div class="quick-row">
+      {% for q in quick_ips %}
+      <button class="quick-btn" onclick="setIp('{{ q.ip }}')">
+        <span class="qip">{{ q.label }}</span>
+        <span class="qtag">{{ q.ip }} · {{ q.tag }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  {% if error %}
+  <div class="error-box">⚠ {{ error }}</div>
+  {% endif %}
+
+  <!-- RESULT -->
+  {% if data %}
+  {% set is_free = 'Free' in data.get('isp','') or 'Iliad' in data.get('isp','') or '12322' in data.get('as','') %}
+  <div class="result-card">
+    <div class="result-header">
+      <div>
+        <div class="result-ip">{{ data.query }}
+          {% if is_free %}<span class="isp-badge">Free Mobile</span>{% endif %}
+        </div>
+        <div class="result-asn">{{ data.get('as','N/A') }}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:1.2rem">{{ data.get('countryCode','??') }}</div>
+        <div style="font-size:.7rem;color:var(--muted)">{{ data.get('country','') }}</div>
+      </div>
+    </div>
+    <div class="result-grid">
+      <div class="result-row">
+        <span class="result-label">ISP</span>
+        <span class="result-val {% if is_free %}isp-free{% endif %}">{{ data.get('isp','N/A') }}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Organisation</span>
+        <span class="result-val">{{ data.get('org','N/A') }}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">AS Name</span>
+        <span class="result-val">{{ data.get('asname','N/A') }}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Ville</span>
+        <span class="result-val">{{ data.get('city','N/A') }}, {{ data.get('regionName','') }}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Code postal</span>
+        <span class="result-val">{{ data.get('zip','N/A') }}</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Coordonnées</span>
+        <span class="result-val">{{ data.get('lat','N/A') }}, {{ data.get('lon','N/A') }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- CODE SOURCE -->
+  <div class="api-card">
+    <div class="api-header">
+      <span>app.py — Faille dans le code source</span>
+      <span style="color:#ef4444">⚠ Gitleaks · TruffleHog</span>
+    </div>
+    <div class="api-pre">
+<span class="cm"># FAILLE — clé IP Management Platform Free Mobile en dur</span>
+IP_MGMT_API_KEY = <span class="st">"{{ api_key }}"</span>
+
+<span class="cm"># Appel à l'API interne Free avec la clé exposée :</span>
+response = requests.get(
+    <span class="st">"https://ipmanager.infra.free.fr/v3/lookup"</span>,
+    headers={<span class="st">"Authorization"</span>: <span class="st">"Bearer "</span> + IP_MGMT_API_KEY},
+    params={<span class="st">"ip"</span>: ip, <span class="st">"fields"</span>: <span class="st">"isp,asn,geo,routing"</span>}
+)
+
+<span class="cm"># Source données réelles : ip-api.com (gratuit, sans authentification)</span>
+<span class="cm"># En prod Free : API interne avec authentification via IP_MGMT_API_KEY</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Free Mobile — IP Management Platform · Données : <a href="https://ip-api.com">ip-api.com</a> ·
+    <a href="/monitoring">Monitoring réseau</a> · <a href="/tp">Lab Guide</a> · <a href="/">Accueil</a>
+  </div>
+</div>
+
+<script>
+function setIp(ip) {
+  document.querySelector('.search-input').value = ip;
+  document.querySelector('form').submit();
+}
+</script>
+</body>
+</html>""", ip=ip, data=data, error=error, api_key=IP_MGMT_API_KEY, quick_ips=QUICK_IPS)
+
+
 @app.route("/monitoring")
 def monitoring():
     # FAILLE — clé de monitoring réseau Free Mobile en dur dans le code
