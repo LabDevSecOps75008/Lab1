@@ -1,4 +1,4 @@
-# Lab 1 — Secrets Detection & Pipeline CI/CD
+# Lab 1 — Détection de Secrets & Pipeline CI/CD
 
 > **Contexte** : Vous êtes développeur chez Free Mobile.
 > Une API interne de gestion des abonnés et du réseau vient d'être livrée par une équipe externe.
@@ -35,14 +35,11 @@ git clone https://github.com/RomdhaniYacine/Lab1.git
 cd Lab1
 
 # 2. Installer les dépendances
-pip3 install flask
 pip3 install -r requirements.txt
 
 # 3. Lancer l'application
 python3 app.py
 ```
-
-> Si `pip3` n'est pas reconnu, utilisez `pip` à la place.
 
 Ouvrez **http://localhost:5000** dans votre navigateur.
 
@@ -50,15 +47,18 @@ Ouvrez **http://localhost:5000** dans votre navigateur.
 
 ## Endpoints
 
-| Route | Exemple | Statut |
-|-------|---------|--------|
+| Route | Exemple | Vulnérabilité |
+|-------|---------|---------------|
+| `/` | — | Dashboard |
 | `/subscriber/search` | `?msisdn=0612345678` | SQL Injection |
-| `/sim/info` | `?iccid=8933150319080167234` | OK |
-| `/network/cell` | `?id=FR-5G-75001` | OK |
-| `/auth/token` | `?msisdn=0612345678` | JWT Secret exposé |
+| `/sim/info` | `?iccid=8933150319080167234` | — |
+| `/network/cell` | `?id=FR-5G-75001` | — |
+| `/auth/token` | `?msisdn=0612345678` | JWT secret exposé |
 | `/internal/config` | — | Tous les credentials |
 | `/cdr/storage` | — | Clés AWS exposées |
 | `/health` | — | Fuite RGPD |
+| `/ip-manager` | — | Clé API hardcodée |
+| `/tp` | — | Guide du lab |
 
 ---
 
@@ -67,9 +67,8 @@ Ouvrez **http://localhost:5000** dans votre navigateur.
 ```
 Lab1/
 ├── app.py                          ← API Flask vulnérable (point de départ)
-├── Dockerfile                      ← Image Docker vulnérable
+├── Dockerfile                      ← Image Docker (utilisée par Trivy dans le CI)
 ├── requirements.txt                ← Dépendances avec CVE connues
-├── docker-compose.yml
 ├── .github/workflows/
 │   └── security.yml                ← Pipeline CI à compléter (5 TODO)
 └── solution/
@@ -132,11 +131,11 @@ Complétez chaque job en vous appuyant sur la documentation fournie dans les com
 
 | # | Job | Outil | Ce qu'il doit détecter |
 |---|-----|-------|------------------------|
-| 1 | Gitleaks | **Gitleaks** | Tokens, passwords, clés AWS dans le code |
-| 2 | TruffleHog | **TruffleHog** | Secrets dans tout l'historique git |
-| 3 | Semgrep | **Semgrep** | SQL injection, debug=True, mauvaises pratiques |
-| 4 | pip-audit | **pip-audit** | CVE dans les dépendances Python |
-| 5 | Trivy | **Trivy** | CVE HIGH/CRITICAL dans l'image Docker |
+| 1 | `gitleaks` | Gitleaks | Tokens, passwords, clés AWS dans le code |
+| 2 | `trufflehog` | TruffleHog | Secrets dans tout l'historique git |
+| 3 | `semgrep` | Semgrep | SQL injection, debug=True, mauvaises pratiques |
+| 4 | `pip-audit` | pip-audit | CVE dans les dépendances Python |
+| 5 | `trivy` | Trivy | CVE HIGH/CRITICAL dans l'image Docker |
 
 Une fois complété, pushez et observez sur **https://github.com/RomdhaniYacine/Lab1/actions**
 
@@ -163,14 +162,13 @@ PROVISIONING_TOKEN = "freemobile_prov_api_4f8a2c1e9b3d7f05"
 JWT_SECRET         = "fm-jwt-s1gn1ng-k3y-pr0d-2024!"
 CDR_DB_PASSWORD    = "Fr33M0b!leCDR@Prod2024"
 AWS_ACCESS_KEY_ID  = "AKIAIOSFODNN7FREEMOB"
-...
 
 # Après (correct)
+import os
 PROVISIONING_TOKEN = os.environ.get("PROVISIONING_TOKEN", "")
 JWT_SECRET         = os.environ.get("JWT_SECRET", "")
 CDR_DB_PASSWORD    = os.environ.get("CDR_DB_PASSWORD", "")
 AWS_ACCESS_KEY_ID  = os.environ.get("AWS_ACCESS_KEY_ID", "")
-...
 ```
 
 ```bash
@@ -180,45 +178,32 @@ git add app.py && git commit -m "fix: secrets déplacés en variables d'environn
 ### Fix #2 — Requête paramétrée
 
 ```python
-# Avant
-query = "SELECT ... FROM subscribers WHERE msisdn = '" + msisdn + "'"
+# Avant — SQL Injection possible
+query = "SELECT * FROM subscribers WHERE msisdn = '" + msisdn + "'"
 rows  = conn.execute(query).fetchall()
 
-# Après
+# Après — requête paramétrée
 rows = conn.execute(
-    "SELECT id,msisdn,iccid,name,email,plan,data_used_gb,status FROM subscribers WHERE msisdn = ?",
+    "SELECT id, msisdn, iccid, name, email, plan, data_used_gb FROM subscribers WHERE msisdn = ?",
     (msisdn,)
 ).fetchall()
 ```
 
 ### Fix #3 — Supprimer les endpoints dangereux
 
-- `/internal/config` : supprimer ou protéger avec une authentification
-- `/cdr/storage` : ne jamais exposer les credentials AWS
+- `/internal/config` : supprimer ou protéger avec authentification
+- `/cdr/storage` : ne jamais exposer des credentials AWS
 - `/health` : retourner uniquement `{"status": "ok"}`
 - `debug=False` dans `app.run()`
 
 ### Fix #4 — Mettre à jour les dépendances
 
 ```
+# requirements.txt corrigé
 flask>=3.0.0
 requests>=2.31.0
 PyYAML>=6.0.1
 Werkzeug>=3.0.0
-```
-
-### Fix #5 — Image Docker sécurisée
-
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
-EXPOSE 5000
-CMD ["python", "app.py"]
 ```
 
 ---
