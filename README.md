@@ -1,9 +1,18 @@
-# Lab DevSecOps Pipeline — 2h
+# Lab 1 — Secrets Detection & Pipeline CI
 
-> **Contexte** : vous êtes développeur chez Free. Cette API REST gère les abonnés en interne —
-> consultation d'abonnés, statut de ligne Freebox, facturation.  
-> Le code vient d'être livré par une équipe externe. Votre mission : l'auditer, corriger les failles,
-> et faire passer la CI de rouge au vert.
+> **Contexte** : Un développeur Free a livré une API interne de gestion des abonnés.
+> En faisant la code review, vous découvrez que **5 types de credentials** ont été
+> commités directement dans le code source. Votre mission : les détecter avec les
+> outils CI, comprendre leur impact, et les corriger proprement.
+
+---
+
+## Objectifs
+
+- Identifier des secrets dans du code source
+- Comprendre la différence entre **Gitleaks** (patterns) et **TruffleHog** (entropie + historique)
+- Comprendre pourquoi **supprimer un secret ne suffit pas** — il faut le révoquer
+- Faire passer un pipeline de 5 jobs du rouge au vert
 
 ---
 
@@ -25,7 +34,7 @@
 git clone https://github.com/RomdhaniYacine/Lab1.git
 cd Lab1
 
-# 2. Installer Flask et les dépendances
+# 2. Installer les dépendances
 pip3 install flask
 pip3 install -r requirements.txt
 
@@ -33,20 +42,22 @@ pip3 install -r requirements.txt
 python3 app.py
 ```
 
-L'API tourne sur **http://localhost:5000**
+> Si `pip3` n'est pas reconnu, utilisez `pip` à la place.
 
-> Si `pip3` n'est pas reconnu, essayez `pip` à la place.
+L'API tourne sur **http://localhost:5000**
 
 ---
 
-## Endpoints disponibles
+## Endpoints
 
-| Endpoint | Exemple | Description |
-|----------|---------|-------------|
-| `/subscriber` | `/subscriber?phone=0612345678` | Recherche abonné par numéro |
-| `/line-status` | `/line-status?id=FBX-29471` | Statut d'une ligne Freebox |
-| `/invoice` | `/invoice?account=1` | Consultation de facture |
-| `/health` | `/health` | Healthcheck interne |
+| Route | Exemple | Faille |
+|-------|---------|--------|
+| `/subscriber` | `/subscriber?phone=0612345678` | SQL Injection |
+| `/auth/token` | `/auth/token?user_id=1` | JWT Secret exposé |
+| `/admin/config` | `/admin/config` | Tous les credentials en clair |
+| `/backup/status` | `/backup/status` | Clés AWS S3 exposées |
+| `/line-status` | `/line-status?id=FBX-29471` | OK |
+| `/health` | `/health` | Fuite RGPD |
 
 ---
 
@@ -54,145 +65,133 @@ L'API tourne sur **http://localhost:5000**
 
 ```
 Lab1/
-├── app.py               ← API Flask (vulnérable — point de départ)
-├── Dockerfile           ← Image Docker (vulnérable)
-├── requirements.txt     ← Dépendances (versions vulnérables)
-├── docker-compose.yml   ← Lancement via Docker
-├── solution/            ← Code corrigé (à ouvrir APRÈS avoir essayé)
+├── app.py                      ← API Flask vulnérable (point de départ)
+├── Dockerfile                  ← Image Docker vulnérable
+├── requirements.txt            ← Dépendances avec CVE
+├── docker-compose.yml          ← Lancement via Docker
+├── solution/                   ← Code corrigé (à ouvrir APRÈS avoir essayé)
 │   ├── app.py
 │   ├── Dockerfile
 │   └── requirements.txt
-└── .github/
-    └── workflows/
-        └── security.yml ← Pipeline CI (4 outils de sécurité)
+└── .github/workflows/
+    └── security.yml            ← Pipeline CI (5 jobs de sécurité)
 ```
 
 ---
 
-## Acte 1 — Découverte (20 min)
+## Acte 1 — Découverte des secrets (20 min)
 
-### 1.1 Lancer l'application
+### 1.1 Inspecter le code source
+
+Ouvrez `app.py` et cherchez les lignes marquées `# FAILLE`.
+
+Identifiez les **5 secrets** présents dans le code :
+
+| # | Variable | Type de secret | Impact si compromis |
+|---|----------|---------------|---------------------|
+| 1 | `FREE_INTERNAL_TOKEN` | Token API interne | Accès aux systèmes internes Free |
+| 2 | `JWT_SECRET` | Clé de signature JWT | Forge de sessions abonnés |
+| 3 | `DB_PASSWORD` | Mot de passe MySQL prod | Accès direct à la base de production |
+| 4 | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | Credentials AWS | Accès aux backups de facturation S3 |
+| 5 | `OAUTH2_CLIENT_SECRET` | Secret OAuth2 | Compromission du SSO Free |
+
+### 1.2 Tester l'exposition des secrets
 
 ```bash
-pip3 install -r requirements.txt
-python3 app.py
+# Voir tous les credentials exposés dans /admin/config
+curl http://localhost:5000/admin/config
+
+# Voir les clés AWS dans /backup/status
+curl http://localhost:5000/backup/status
+
+# Générer un JWT signé avec le secret hardcodé
+curl "http://localhost:5000/auth/token?user_id=1"
 ```
 
-### 1.2 Tester les endpoints normaux
+### 1.3 Exploiter la faille SQL
 
 ```bash
-# Recherche d'un abonné
+# Requête normale — retourne 1 abonné
 curl "http://localhost:5000/subscriber?phone=0612345678"
 
-# Statut d'une ligne Freebox
-curl "http://localhost:5000/line-status?id=FBX-29471"
-
-# Facture
-curl "http://localhost:5000/invoice?account=1"
-```
-
-### 1.3 Exploiter la faille SQL — extraire TOUS les abonnés
-
-```bash
+# Injection SQL — retourne TOUS les abonnés
 curl "http://localhost:5000/subscriber?phone=0612345678' OR '1'='1"
 ```
 
-**Résultat** : les 5 abonnés s'affichent au lieu d'un seul.  
-En production chez Free, cette requête retourne **des millions de lignes** : noms, emails, numéros de téléphone.  
-C'est un **incident de sécurité majeur** et une violation directe du RGPD.
-
-### 1.4 Exploiter la fuite de données dans /health
-
-```bash
-curl "http://localhost:5000/health"
-```
-
-**Résultat** : le healthcheck expose en clair :
-- Le token API interne Free
-- Le mot de passe de la base de production
-- Le nom, email et IBAN du dernier abonné enregistré
-
-Un simple scan automatisé de ports peut découvrir cet endpoint. **Amende RGPD potentielle : jusqu'à 4% du chiffre d'affaires annuel.**
-
-### 1.5 Lire le code source
-
-Ouvrez `app.py` et repérez les 4 commentaires `# ── FAILLE`.
-
-| # | Faille | Risque |
-|---|--------|--------|
-| 1 | Credentials en dur dans le code | Compromission de la prod si le repo est exposé |
-| 2 | Injection SQL sur `/subscriber` | Exfiltration de toute la base abonnés |
-| 3 | RGPD + secrets dans `/health` | Violation RGPD, credentials prod exposés |
-| 4 | `debug=True` en production | Console Werkzeug = exécution de code arbitraire |
-
-Ouvrez `Dockerfile`. La faille #5 est l'image de base `python:3.9`, criblée de CVE.
+En production chez Free, cette requête exposerait des **millions d'abonnés** : noms, emails, plans, consommation data.
 
 ---
 
-## Acte 2 — CI au rouge (25 min)
+## Acte 2 — Observer le pipeline en échec (20 min)
 
-Le pipeline GitHub Actions se déclenche à chaque `push`.
-
-### 2.1 Observer les 4 jobs en échec
+### 2.1 Les 5 jobs CI
 
 Rendez-vous sur **https://github.com/RomdhaniYacine/Lab1/actions**
 
-| Job | Outil | Ce qu'il détecte |
-|-----|-------|-----------------|
-| 1 — Scan de secrets | **Gitleaks** | `INTERNAL_API_TOKEN` et `DB_PASSWORD` en dur |
-| 2 — SAST | **Semgrep** | Injection SQL dans `/subscriber` |
-| 3 — Dépendances | **pip-audit** | CVE dans flask 2.0.1, requests 2.19.1, PyYAML 5.1 |
-| 4 — Image conteneur | **Trivy** | CVE HIGH/CRITICAL dans python:3.9 |
+| # | Job | Outil | Ce qu'il détecte |
+|---|-----|-------|-----------------|
+| 1 | Secrets (Gitleaks) | **Gitleaks** | Patterns connus : tokens, passwords, clés AWS |
+| 2 | Secrets historique (TruffleHog) | **TruffleHog** | Entropie élevée + scan de tout l'historique git |
+| 3 | SAST (Semgrep) | **Semgrep** | Injection SQL, debug=True, mauvaises pratiques |
+| 4 | Dépendances (pip-audit) | **pip-audit** | CVE dans flask 2.0.1, requests 2.19.1, PyYAML 5.1 |
+| 5 | Image conteneur (Trivy) | **Trivy** | CVE HIGH/CRITICAL dans python:3.9 |
 
-### 2.2 Analyser chaque rapport
+### 2.2 Gitleaks vs TruffleHog — quelle différence ?
 
-Pour chaque job en rouge, ouvrez les logs et répondez :
-- Qu'est-ce qui a été détecté ?
-- Quel est l'impact métier pour Free ?
-- Comment le corriger ?
+| | Gitleaks | TruffleHog |
+|---|----------|-----------|
+| **Méthode** | Patterns regex connus (AWS, GitHub, etc.) | Entropie de Shannon + patterns + vérification |
+| **Scope** | Code actuel | Code actuel + **tout l'historique git** |
+| **Force** | Rapide, peu de faux positifs | Détecte les secrets supprimés dans d'anciens commits |
+| **Cas d'usage** | Empêcher un commit | Auditer un repo existant |
+
+> **Règle d'or** : un secret committé dans git, même supprimé ensuite, reste dans l'historique.
+> Il faut **révoquer le secret** (changer le mot de passe, invalider le token), pas juste le supprimer.
 
 ---
 
-## Acte 3 — Fix progressif (55 min)
+## Acte 3 — Correction des secrets (40 min)
 
-Corrigez faille par faille et pushez après chaque correction pour voir la CI évoluer.
+### Fix #1 — Remplacer tous les secrets par des variables d'environnement
 
----
-
-### Fix #1 — Supprimer les credentials du code
-
-Dans `app.py`, remplacez les valeurs en dur par des variables d'environnement :
+Dans `app.py`, remplacez les valeurs en dur :
 
 ```python
 # Avant
-INTERNAL_API_TOKEN = "freetelecom_internal_api_x7k9m2p4q1"
-DB_PASSWORD = "FreeProd@MySQL2024!"
+FREE_INTERNAL_TOKEN   = "freetelecom_internal_api_x7k9m2p4q1"
+JWT_SECRET            = "fr33-s3cr3t-jwt-pr0d-2024!"
+DB_PASSWORD           = "FreeProd@MySQL2024!"
+AWS_ACCESS_KEY_ID     = "AKIAIOSFODNN7FREETEL"
+AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYFREETELECOM"
+OAUTH2_CLIENT_SECRET  = "oauth2_free_9f8e7d6c5b4a3210abcdef1234567890"
 
 # Après
-INTERNAL_API_TOKEN = os.environ.get("INTERNAL_API_TOKEN", "")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+FREE_INTERNAL_TOKEN   = os.environ.get("FREE_INTERNAL_TOKEN", "")
+JWT_SECRET            = os.environ.get("JWT_SECRET", "")
+DB_PASSWORD           = os.environ.get("DB_PASSWORD", "")
+AWS_ACCESS_KEY_ID     = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+OAUTH2_CLIENT_SECRET  = os.environ.get("OAUTH2_CLIENT_SECRET", "")
 ```
 
 Dans `docker-compose.yml`, décommentez la section `environment`.
 
 ```bash
 git add app.py docker-compose.yml
-git commit -m "fix: supprimer les credentials du code source"
+git commit -m "fix: remplacer les secrets hardcodés par des variables d'environnement"
 git push
 ```
 
-Attendez la CI → **Gitleaks passe au vert**.
+Attendez la CI → **Gitleaks et TruffleHog passent au vert**.
 
 ---
 
 ### Fix #2 — Corriger l'injection SQL
 
-Dans `app.py`, remplacez la concaténation par une requête paramétrée :
-
 ```python
 # Avant
-query = "SELECT id, phone, name, email, plan, data_used_gb FROM subscribers WHERE phone = '" + phone + "'"
-rows = conn.execute(query).fetchall()
+query = "SELECT ... FROM subscribers WHERE phone = '" + phone + "'"
+rows  = conn.execute(query).fetchall()
 
 # Après
 rows = conn.execute(
@@ -201,16 +200,9 @@ rows = conn.execute(
 ).fetchall()
 ```
 
-Vérifiez que l'exploit ne fonctionne plus :
-
-```bash
-curl "http://localhost:5000/subscriber?phone=0612345678' OR '1'='1"
-# Doit retourner [] — aucun résultat
-```
-
 ```bash
 git add app.py
-git commit -m "fix: requête paramétrée sur /subscriber — injection SQL corrigée"
+git commit -m "fix: requête paramétrée — injection SQL corrigée"
 git push
 ```
 
@@ -218,9 +210,11 @@ Attendez la CI → **Semgrep passe au vert**.
 
 ---
 
-### Fix #3 — Nettoyer le healthcheck
+### Fix #3 — Nettoyer /admin/config et /health
 
-Dans `app.py`, supprimez toute donnée sensible du `/health` :
+`/admin/config` ne doit pas exister sans authentification. Supprimez l'endpoint ou protégez-le.
+
+`/health` ne doit retourner que le statut :
 
 ```python
 @app.route("/health")
@@ -228,29 +222,21 @@ def health():
     return jsonify({"status": "ok"})
 ```
 
----
-
-### Fix #4 — Désactiver le mode debug
+Désactivez aussi le mode debug :
 
 ```python
-# Avant
-app.run(host="0.0.0.0", port=5000, debug=True)
-
-# Après
 app.run(host="0.0.0.0", port=5000, debug=False)
 ```
 
 ```bash
 git add app.py
-git commit -m "fix: désactiver debug mode et supprimer fuite RGPD dans /health"
+git commit -m "fix: supprimer exposition config, RGPD et debug mode"
 git push
 ```
 
 ---
 
-### Fix #5 — Mettre à jour les dépendances
-
-Dans `requirements.txt` :
+### Fix #4 — Mettre à jour les dépendances
 
 ```
 flask>=3.0.0
@@ -261,7 +247,7 @@ Werkzeug>=3.0.0
 
 ```bash
 git add requirements.txt
-git commit -m "fix: dépendances mises à jour — suppression des CVE connues"
+git commit -m "fix: dépendances mises à jour — suppression CVE connues"
 git push
 ```
 
@@ -269,18 +255,14 @@ Attendez la CI → **pip-audit passe au vert**.
 
 ---
 
-### Fix #6 — Moderniser l'image Docker
-
-Dans `Dockerfile` :
+### Fix #5 — Moderniser l'image Docker
 
 ```dockerfile
 FROM python:3.12-slim
 
 WORKDIR /app
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
 
 RUN adduser --disabled-password --gecos "" appuser
@@ -300,55 +282,47 @@ Attendez la CI → **Trivy passe au vert**.
 
 ---
 
-### Milestone — Pipeline 100% vert
+## Acte 4 — TruffleHog et l'historique git (20 min)
 
-Rendez-vous sur **https://github.com/RomdhaniYacine/Lab1/actions**
-
-Les 4 jobs sont verts. Cette API peut désormais être déployée en toute confiance.
-
----
-
-## Acte 4 — Durcir le pipeline (20 min)
-
-### 4.1 Simuler un credential committé par erreur
+### 4.1 Démontrer que la suppression ne suffit pas
 
 ```bash
-# Ajoutez dans app.py :
-# STRIPE_SECRET = "sk_live_abc123FreeTelecom"
+# Créer un commit avec un faux secret
+echo 'BACKUP_TOKEN = "ghp_faketoken1234567890abcdef"' >> app.py
+git add app.py && git commit -m "test: ajout token temporaire"
 
-git add app.py && git commit -m "feat: ajout passerelle paiement" && git push
+# Le supprimer dans le commit suivant
+git revert HEAD --no-edit
+git push
 ```
 
-**Résultat** : Gitleaks bloque immédiatement. Le credential n'atteint jamais la production.
+Observez : **TruffleHog détecte le secret dans l'historique** même après suppression.
 
-Supprimez la ligne et re-pushez.
+**Conclusion** : il faut révoquer le token sur GitHub, pas juste le supprimer du code.
 
-### 4.2 Créer une Pull Request bloquée par la CI
+### 4.2 Créer une Pull Request bloquée
 
 ```bash
 git checkout -b feature/nouvelle-api
-# Réintroduire la concaténation SQL dans /subscriber
-git add app.py
-git commit -m "perf: optimisation requête abonnés"
+# Réintroduire une concaténation SQL
+git add app.py && git commit -m "perf: refacto requête abonnés"
 git push origin feature/nouvelle-api
 ```
 
-Ouvrez une Pull Request sur GitHub.  
-Semgrep détecte la régression et **bloque le merge automatiquement**.
+Ouvrez une PR → Semgrep bloque automatiquement le merge.
 
 ---
 
 ## Bilan
 
-| Ce que vous avez mis en place | Équivalent en production chez Free |
-|-------------------------------|-----------------------------------|
-| Gitleaks sur chaque push | Empêche les credentials de fuiter dans le dépôt |
-| Semgrep (SAST) | Détecte les injections SQL avant le déploiement |
-| pip-audit | Veille CVE sur les dépendances Python |
-| Trivy | Scan des images avant mise en production |
-| PR bloquée par CI | Aucune régression sécurité ne peut être mergée |
-
-> Ce pipeline est représentatif de ce qui est déployé dans les équipes DevSecOps en production.
+| Ce que vous avez mis en place | Impact en production Free |
+|-------------------------------|--------------------------|
+| **Gitleaks** | Bloque les tokens/passwords avant le push |
+| **TruffleHog** | Audite tout l'historique, détecte les secrets oubliés |
+| **Semgrep** | Arrête les injections SQL et les mauvaises pratiques |
+| **pip-audit** | Veille CVE en continu sur les dépendances |
+| **Trivy** | Garantit que les images déployées sont sans CVE critiques |
+| **PR bloquée** | Aucune régression sécurité ne peut être mergée |
 
 ---
 

@@ -1,4 +1,4 @@
-# FAILLE #3 — versions anciennes avec CVE connues (détecté par pip-audit / Trivy)
+# FAILLE — versions anciennes avec CVE connues (détectées par pip-audit + Trivy)
 flask==2.0.1
 requests==2.19.1
 PyYAML==5.1
