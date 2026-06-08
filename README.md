@@ -21,13 +21,21 @@
 ## Démarrage rapide
 
 ```bash
+# 1. Cloner le projet
 git clone https://github.com/RomdhaniYacine/Lab1.git
 cd Lab1
+
+# 2. Installer Flask et les dépendances
+pip3 install flask
 pip3 install -r requirements.txt
+
+# 3. Lancer l'application
 python3 app.py
 ```
 
 L'API tourne sur **http://localhost:5000**
+
+> Si `pip3` n'est pas reconnu, essayez `pip` à la place.
 
 ---
 
