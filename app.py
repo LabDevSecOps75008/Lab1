@@ -32,9 +32,9 @@ def init_db():
     """)
     if not conn.execute("SELECT 1 FROM subscribers LIMIT 1").fetchone():
         conn.executemany("INSERT INTO subscribers VALUES (?,?,?,?)", [
-            (1, "0612345678", "Jean Dupont",    "Free 5G 210Go"),
-            (2, "0698765432", "Marie Martin",   "Free 4G 80Go"),
-            (3, "0634567890", "Ahmed Benali",   "Free 5G 130Go"),
+            (1, "0612345678", "Jean Dupont",  "Free 5G 210Go"),
+            (2, "0698765432", "Marie Martin", "Free 4G 80Go"),
+            (3, "0634567890", "Ahmed Benali", "Free 5G 130Go"),
         ])
         conn.commit()
     conn.close()
@@ -44,23 +44,11 @@ def init_db():
 def subscriber():
     msisdn = request.args.get("msisdn", "")
     conn = get_db()
-    # FAILLE — SQL Injection
     rows = conn.execute(
-        f"SELECT * FROM subscribers WHERE msisdn = '{msisdn}'"
+        "SELECT * FROM subscribers WHERE msisdn = ?", (msisdn,)
     ).fetchall()
     conn.close()
     return jsonify([{"id": r[0], "msisdn": r[1], "name": r[2], "plan": r[3]} for r in rows])
-
-
-@app.route("/config")
-def config():
-    # FAILLE — expose tous les secrets sans authentification
-    return jsonify({
-        "api_token":    API_TOKEN,
-        "jwt_secret":   JWT_SECRET,
-        "db_password":  DB_PASSWORD,
-        "aws_key_id":   AWS_ACCESS_KEY_ID,
-    })
 
 
 @app.route("/health")
@@ -70,4 +58,4 @@ def health():
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)  # FAILLE — debug=True en prod
+    app.run(host="0.0.0.0", port=5000, debug=True)
