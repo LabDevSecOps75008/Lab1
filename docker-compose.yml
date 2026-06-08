@@ -3,9 +3,7 @@ services:
     build: .
     ports:
       - "5000:5000"
-    # Au départ, les secrets sont (à tort) en dur dans app.py.
-    # Après correction, on les injecte ici via l'environnement :
+    # Décommentez après le Fix #1 (suppression des secrets du code) :
     # environment:
     #   - API_KEY=demo_key_pour_atelier
     #   - DB_PASSWORD=demo_pwd_pour_atelier
-    #   - FLASK_DEBUG=false
