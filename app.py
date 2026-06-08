@@ -638,545 +638,231 @@ function setIp(ip) {
 
 
 @app.route("/tp")
+
+@app.route("/tp")
 def tp():
     return render_template_string("""<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lab 1 — Secrets Detection | Free Mobile DevSecOps</title>
+  <title>Lab 1 — Gitleaks | Free Mobile DevSecOps</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --red:#E2001A; --dark:#0f1117; --surface:#161b22;
-      --border:#21262d; --text:#c9d1d9; --muted:#8b949e;
-      --green:#238636; --green-text:#3fb950;
-      --blue:#1f6feb; --blue-text:#58a6ff;
-      --yellow:#9e6a03; --yellow-text:#e3b341;
-      --code-bg:#1c2128;
-    }
+    :root{--red:#E2001A;--dark:#0f1117;--surface:#161b22;--border:#21262d;
+          --text:#c9d1d9;--muted:#8b949e;--green:#3fb950;--blue:#58a6ff;--code:#1c2128;--orange:#e3b341}
     *{margin:0;padding:0;box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{background:var(--dark);color:var(--text);font-family:'Inter',sans-serif;font-size:.9rem;line-height:1.7}
-    /* TOPBAR */
-    .topbar{position:sticky;top:0;z-index:100;background:#0d1117ee;backdrop-filter:blur(12px);
-            border-bottom:1px solid var(--border);padding:12px 32px;
-            display:flex;align-items:center;gap:16px}
-    .logo{background:var(--red);color:#fff;font-weight:700;font-size:.85rem;
-          padding:5px 14px;border-radius:5px;letter-spacing:.3px;white-space:nowrap}
-    .topbar-sep{color:var(--border);font-size:1.2rem}
-    .topbar-title{color:var(--muted);font-size:.82rem}
-    .topbar-meta{margin-left:auto;display:flex;gap:10px;align-items:center}
-    .chip{background:var(--surface);border:1px solid var(--border);color:var(--muted);
-          font-size:.7rem;padding:3px 10px;border-radius:20px;white-space:nowrap}
-    .chip-red{background:#1a0a0a;border-color:#7a1a1a;color:#ff9999}
-    /* LAYOUT */
-    .layout{display:flex;min-height:calc(100vh - 53px)}
-    /* SIDEBAR */
-    .sidebar{width:260px;min-width:260px;border-right:1px solid var(--border);
-             padding:28px 0;position:sticky;top:53px;height:calc(100vh - 53px);overflow-y:auto}
-    .sidebar-section{font-size:.65rem;font-weight:600;color:var(--muted);
-                     text-transform:uppercase;letter-spacing:.8px;
-                     padding:0 20px;margin-bottom:6px;margin-top:20px}
-    .sidebar-section:first-child{margin-top:0}
-    .sidebar a{display:block;padding:7px 20px;font-size:.78rem;color:var(--muted);
-               text-decoration:none;border-left:3px solid transparent;
-               transition:all .15s}
-    .sidebar a:hover{color:var(--text);background:#ffffff06;border-left-color:var(--border)}
-    .sidebar a.active{color:var(--red);border-left-color:var(--red);background:#E2001A11}
-    /* CONTENT */
-    .content{flex:1;max-width:860px;padding:40px 48px;overflow-x:hidden}
-    /* HEADER */
-    .page-header{margin-bottom:40px;padding-bottom:28px;border-bottom:1px solid var(--border)}
-    .page-tag{display:inline-flex;align-items:center;gap:6px;background:#E2001A18;
-              border:1px solid #E2001A44;color:#ff9999;font-size:.7rem;font-weight:600;
-              padding:4px 12px;border-radius:20px;margin-bottom:16px}
-    .page-tag span{width:6px;height:6px;background:var(--red);border-radius:50%;display:inline-block}
-    h1{font-size:1.7rem;font-weight:700;color:#fff;line-height:1.3;margin-bottom:12px}
-    .page-desc{color:var(--muted);font-size:.88rem;line-height:1.8;max-width:640px}
-    /* META CARDS */
-    .meta-row{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap}
-    .meta-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;
-               padding:14px 18px;flex:1;min-width:130px}
-    .meta-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;
-                letter-spacing:.6px;margin-bottom:4px}
-    .meta-value{font-size:.88rem;font-weight:600;color:var(--text)}
-    /* OBJECTIVES */
-    .objectives{background:var(--surface);border:1px solid var(--border);
-                border-radius:8px;padding:20px 24px;margin-bottom:32px}
-    .objectives h3{font-size:.75rem;color:var(--muted);text-transform:uppercase;
-                   letter-spacing:.6px;margin-bottom:14px}
-    .obj-item{display:flex;align-items:flex-start;gap:10px;
-              padding:8px 0;border-bottom:1px solid var(--border);font-size:.82rem}
-    .obj-item:last-child{border-bottom:none;padding-bottom:0}
-    .obj-num{background:var(--red);color:#fff;font-size:.65rem;font-weight:700;
-             width:20px;height:20px;border-radius:4px;display:flex;align-items:center;
-             justify-content:center;flex-shrink:0;margin-top:1px}
-    /* STEPS */
-    .step{margin-bottom:48px}
-    .step-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-    .step-num{background:var(--surface);border:2px solid var(--border);color:var(--muted);
-              font-size:.75rem;font-weight:700;width:36px;height:36px;border-radius:8px;
-              display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .step-num.active{background:#E2001A22;border-color:var(--red);color:var(--red)}
-    h2{font-size:1.1rem;font-weight:600;color:#fff}
-    .step-desc{color:var(--muted);font-size:.83rem;margin-bottom:20px;line-height:1.8}
-    /* CODE BLOCKS */
-    .code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
-                overflow:hidden;margin:16px 0;font-family:'JetBrains Mono',monospace}
-    .code-header{display:flex;align-items:center;justify-content:space-between;
-                 padding:8px 14px;border-bottom:1px solid var(--border);background:#0d1117}
-    .code-lang{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-    .code-copy{font-size:.65rem;color:var(--muted);cursor:pointer;background:none;border:none;
-               font-family:inherit;padding:2px 8px;border-radius:4px;transition:all .15s}
-    .code-copy:hover{background:var(--border);color:var(--text)}
-    pre{padding:16px 18px;overflow-x:auto;font-size:.78rem;line-height:1.7;color:#e6edf3}
-    .kw{color:#ff7b72}.st{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}
-    .fn{color:#d2a8ff}.nu{color:#79c0ff}.op{color:#ff7b72}
-    /* CALLOUTS */
-    .callout{border-radius:8px;padding:14px 18px;margin:16px 0;
-             font-size:.8rem;line-height:1.8;display:flex;gap:12px;align-items:flex-start}
-    .callout-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
-    .callout-tip{background:#0d2818;border:1px solid #238636}
-    .callout-warn{background:#1a1100;border:1px solid #9e6a03}
-    .callout-info{background:#0d1b2a;border:1px solid #1f6feb}
-    /* QUESTIONS */
-    .questions{background:#0d1b2a;border:1px solid #1f6feb;border-left:4px solid var(--blue);
-               border-radius:0 8px 8px 0;padding:16px 20px;margin:16px 0}
-    .questions h4{color:var(--blue-text);font-size:.75rem;font-weight:600;
-                  text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-    .questions li{font-size:.82rem;color:var(--text);margin-bottom:6px;margin-left:16px}
-    /* DELIVERABLES */
-    .deliverables{background:var(--surface);border:1px solid var(--border);
-                  border-radius:8px;padding:20px 24px;margin:24px 0}
-    .deliverables h3{font-size:.75rem;color:var(--muted);text-transform:uppercase;
-                     letter-spacing:.6px;margin-bottom:14px}
-    .deliverable-item{display:flex;align-items:flex-start;gap:10px;
-                      padding:8px 0;border-bottom:1px solid var(--border);font-size:.82rem}
-    .deliverable-item:last-child{border-bottom:none}
-    .check{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;
-           flex-shrink:0;margin-top:2px}
-    /* FOOTER */
-    .footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);
-            display:flex;justify-content:space-between;align-items:center;
-            font-size:.72rem;color:var(--muted)}
-    .footer a{color:var(--blue-text);text-decoration:none}
-    h3{font-size:.88rem;font-weight:600;color:var(--text);margin:20px 0 10px}
-    hr{border:none;border-top:1px solid var(--border);margin:28px 0}
-    /* PREREQ */
-    .prereq-table{width:100%;border-collapse:collapse;margin:12px 0}
-    .prereq-table th{text-align:left;font-size:.7rem;color:var(--muted);
-                     text-transform:uppercase;letter-spacing:.5px;
-                     padding:8px 12px;border-bottom:1px solid var(--border)}
-    .prereq-table td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:.8rem}
-    .prereq-table tr:last-child td{border-bottom:none}
-    code{background:var(--code-bg);border:1px solid var(--border);padding:1px 6px;
-         border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#a5d6ff}
-    @media(max-width:768px){
-      .sidebar{display:none}
-      .content{padding:24px 20px}
-    }
+    body{background:var(--dark);color:var(--text);font-family:'Inter',sans-serif;font-size:.88rem;line-height:1.7;min-height:100vh}
+    .topbar{background:#0d1117ee;backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+            padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+    .logo{background:var(--red);color:#fff;font-weight:700;font-size:.85rem;padding:5px 14px;border-radius:5px;letter-spacing:.3px}
+    .topbar-right{margin-left:auto;display:flex;gap:16px;align-items:center}
+    .topbar-right a{color:var(--blue);font-size:.78rem;text-decoration:none}
+    .container{max-width:860px;margin:0 auto;padding:48px 28px}
+    h1{font-size:1.6rem;font-weight:700;color:#fff;margin-bottom:6px}
+    .meta{display:flex;gap:20px;margin-bottom:40px;flex-wrap:wrap}
+    .meta-item{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+    .meta-item strong{color:var(--text)}
+    h2{font-size:1rem;font-weight:600;color:#fff;margin:40px 0 12px;display:flex;align-items:center;gap:10px}
+    h2 .step-num{background:var(--red);color:#fff;font-size:.72rem;padding:2px 8px;border-radius:4px;font-weight:700}
+    h3{font-size:.88rem;font-weight:600;color:var(--blue);margin:20px 0 10px}
+    p{margin-bottom:12px;color:var(--text)}
+    ul,ol{margin:0 0 16px 20px}
+    li{margin-bottom:6px}
+    pre{background:var(--code);border:1px solid var(--border);border-radius:8px;
+        padding:16px 20px;overflow-x:auto;margin:12px 0;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#e6edf3;line-height:1.6}
+    code{font-family:'JetBrains Mono',monospace;font-size:.82em;background:var(--code);
+         padding:2px 6px;border-radius:4px;color:#a5d6ff;border:1px solid var(--border)}
+    .objective-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-bottom:32px}
+    .objective-box ol{margin:10px 0 0 18px}
+    .objective-box li{color:var(--text);margin-bottom:8px}
+    .info-box{background:#111d2e;border:1px solid #1f6feb;border-left:4px solid #58a6ff;
+              border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;font-size:.82rem;color:#a5d6ff}
+    .warn-box{background:#1a0e00;border:1px solid #7a4a00;border-left:4px solid var(--orange);
+              border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;font-size:.82rem;color:var(--orange)}
+    .question-box{background:#0d1f0d;border:1px solid #238636;border-radius:8px;
+                  padding:16px 20px;margin:16px 0}
+    .question-box .q-title{font-size:.72rem;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+    .question-box ul{margin:0 0 0 16px}
+    .question-box li{color:var(--text);margin-bottom:6px;font-size:.84rem}
+    .section-divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+    .livrable-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px}
+    .livrable-box ol{margin:10px 0 0 18px}
+    .livrable-box li{margin-bottom:8px}
+    .retenir{background:#0f1117;border:1px solid var(--red);border-radius:8px;padding:20px 24px;margin-top:40px;font-size:.84rem;color:var(--text);line-height:1.8}
+    .retenir strong{color:var(--red)}
+    .footer{text-align:center;padding:40px 0 24px;border-top:1px solid var(--border);
+            font-size:.72rem;color:var(--muted);margin-top:48px}
+    .footer a{color:var(--blue);text-decoration:none}
   </style>
 </head>
 <body>
-
 <div class="topbar">
   <div class="logo">Free Mobile</div>
-  <span class="topbar-sep">|</span>
-  <span class="topbar-title">DevSecOps Training — Lab 1</span>
-  <div class="topbar-meta">
-    <span class="chip">Gitleaks</span>
-    <span class="chip">TruffleHog</span>
-    <span class="chip chip-red">⚠ Code vulnérable</span>
+  <span style="color:var(--muted);font-size:.8rem">DevSecOps — Lab 1</span>
+  <div class="topbar-right">
+    <a href="/">← Accueil</a>
+    <a href="/ip-manager">IP Manager</a>
+    <a href="https://github.com/RomdhaniYacine/Lab1" target="_blank">GitHub</a>
   </div>
 </div>
 
-<div class="layout">
-  <nav class="sidebar">
-    <div class="sidebar-section">Navigation</div>
-    <a href="#intro" class="active">Introduction</a>
-    <a href="#prereqs">Prérequis</a>
-    <div class="sidebar-section">Étapes</div>
-    <a href="#step0">0 — Initialisation</a>
-    <a href="#step1">1 — Détecter un secret</a>
-    <a href="#step2">2 — Pre-commit hook</a>
-    <a href="#step3">3 — Historique Git</a>
-    <a href="#step4">4 — Remédiation</a>
-    <div class="sidebar-section">Ressources</div>
-    <a href="#deliverables">Livrables</a>
-    <a href="#further">Pour aller plus loin</a>
-    <a href="/api" style="margin-top:8px">← API vulnérable</a>
-  </nav>
+<div class="container">
+  <h1>Lab 1 — Détection de secrets avec Gitleaks</h1>
+  <div class="meta">
+    <div class="meta-item">⏱ <strong>Durée : 1h00</strong></div>
+    <div class="meta-item">🐍 <strong>Stack : Python</strong></div>
+    <div class="meta-item">🔍 <strong>Outil principal : Gitleaks</strong></div>
+  </div>
 
-  <main class="content">
+  <div class="objective-box">
+    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;font-weight:600">Objectifs pédagogiques</div>
+    <p style="margin-bottom:10px">À la fin de ce TP, vous serez capable de :</p>
+    <ol>
+      <li>Détecter un secret présent dans le code source avec un scanner automatique.</li>
+      <li>Mettre en place un pre-commit hook qui bloque un commit contenant un secret avant qu'il ne soit créé.</li>
+      <li>Comprendre qu'un secret supprimé du code reste présent dans l'historique Git, et savoir comment réagir.</li>
+    </ol>
+  </div>
 
-    <!-- HEADER -->
-    <div class="page-header" id="intro">
-      <div class="page-tag"><span></span>Lab 1 / 2 — Secrets Detection</div>
-      <h1>Détecter et prévenir les fuites de secrets dans Git</h1>
-      <p class="page-desc">
-        Vous développez un service Python interne chez Free Mobile. Comme beaucoup de développeurs,
-        vous allez commettre l'erreur classique : écrire une clé d'API en dur dans le code.
-        L'objectif est de voir ce qui se passe, puis d'apprendre à l'empêcher.
-      </p>
-    </div>
+  <hr class="section-divider">
 
-    <!-- META -->
-    <div class="meta-row">
-      <div class="meta-card">
-        <div class="meta-label">Durée estimée</div>
-        <div class="meta-value">1 heure</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Stack</div>
-        <div class="meta-value">Python / Flask</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Outil principal</div>
-        <div class="meta-value">Gitleaks</div>
-      </div>
-      <div class="meta-card">
-        <div class="meta-label">Niveau</div>
-        <div class="meta-value">Débutant</div>
-      </div>
-    </div>
+  <!-- ÉTAPE 0 -->
+  <h2><span class="step-num">0</span> Prise en main</h2>
+  <p>Clonez le projet et lancez l'API :</p>
+  <pre>git clone https://github.com/RomdhaniYacine/Lab1.git
+cd Lab1
+pip3 install -r requirements.txt
+python3 app.py</pre>
+  <p>Ouvrez <strong>http://localhost:5000</strong> — vous verrez le tableau de bord de l'API Free Mobile.</p>
+  <p>Parcourez <code>app.py</code>. Les premières lignes contiennent le code de production livré par l'équipe externe.</p>
 
-    <!-- OBJECTIVES -->
-    <div class="objectives">
-      <h3>Objectifs pédagogiques</h3>
-      <div class="obj-item">
-        <div class="obj-num">1</div>
-        Détecter un secret présent dans le code source avec un scanner automatique.
-      </div>
-      <div class="obj-item">
-        <div class="obj-num">2</div>
-        Mettre en place un pre-commit hook qui bloque un commit contenant un secret.
-      </div>
-      <div class="obj-item">
-        <div class="obj-num">3</div>
-        Comprendre qu'un secret supprimé reste dans l'historique Git — et savoir comment réagir.
-      </div>
-    </div>
+  <!-- ÉTAPE 1 -->
+  <h2><span class="step-num">1</span> Détecter les secrets dans le code</h2>
+  <p>Des credentials sont écrits en dur dans <code>app.py</code> :</p>
+  <pre>PROVISIONING_TOKEN = "freemobile_prov_api_4f8a2c1e9b3d7f05"
+JWT_SECRET         = "fm-jwt-s1gn1ng-k3y-pr0d-2024!"
+CDR_DB_PASSWORD    = "Fr33M0b!leCDR@Prod2024"
+AWS_ACCESS_KEY_ID  = "LAB_AKIAIOSFODNN7FREEMOB"
+MVNO_PARTNER_KEY   = "mvno_partner_key_9e8d7c6b5a4f3210"</pre>
+  <p>Lancez un scan du dépôt :</p>
+  <pre>gitleaks detect --source . --verbose</pre>
 
-    <div class="callout callout-warn">
-      <div class="callout-icon">⚠</div>
-      <div>Les clés utilisées dans ce lab sont <strong>fictives</strong>. N'utilisez jamais de vraie clé d'API dans un exercice ou un dépôt public.</div>
-    </div>
+  <div class="question-box">
+    <div class="q-title">Questions</div>
+    <ul>
+      <li>Que détecte Gitleaks ? Notez le type de secret, le fichier et le commit incriminé.</li>
+      <li>Quel code de sortie renvoie Gitleaks ? (<code>echo $?</code> — 0 = rien trouvé, 1 = secret détecté.)</li>
+    </ul>
+  </div>
 
-    <!-- PREREQS -->
-    <hr>
-    <div id="prereqs">
-      <h2>Prérequis</h2>
-      <table class="prereq-table">
-        <tr><th>Outil</th><th>Vérification</th><th>Installation</th></tr>
-        <tr>
-          <td>Git</td>
-          <td><code>git --version</code></td>
-          <td>Inclus dans la plupart des OS</td>
-        </tr>
-        <tr>
-          <td>Python 3.10+</td>
-          <td><code>python3 --version</code></td>
-          <td><code>python.org</code></td>
-        </tr>
-        <tr>
-          <td>Gitleaks</td>
-          <td><code>gitleaks version</code></td>
-          <td>macOS : <code>brew install gitleaks</code> · Linux : binaire GitHub releases</td>
-        </tr>
-      </table>
-    </div>
+  <div class="info-box">
+    💡 Ce code de sortie est exactement ce qu'utilisera un pipeline CI pour faire échouer un build.
+  </div>
 
-    <!-- STEP 0 -->
-    <hr>
-    <div class="step" id="step0">
-      <div class="step-header">
-        <div class="step-num active">0</div>
-        <h2>Initialisation du projet</h2>
-      </div>
-      <p class="step-desc">Créez un dépôt Git vierge et une application Flask propre, sans aucun secret.</p>
+  <!-- ÉTAPE 2 -->
+  <h2><span class="step-num">2</span> Prévenir : bloquer le commit avant qu'il n'arrive</h2>
+  <p>Détecter après coup, c'est du nettoyage. L'objectif du <em>shift left</em> est d'empêcher la fuite dès le poste du développeur.</p>
 
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>mkdir tp-secrets && cd tp-secrets
-git init
-pip3 install flask</pre>
-      </div>
+  <h3>2.1 Installer le hook Git</h3>
+  <p>Créez le fichier <code>.git/hooks/pre-commit</code> :</p>
+  <pre>#!/bin/sh
+gitleaks protect --staged --verbose</pre>
+  <p>Rendez-le exécutable :</p>
+  <pre>chmod +x .git/hooks/pre-commit</pre>
+  <p><code>gitleaks protect --staged</code> analyse uniquement ce qui est mis en stage (<code>git add</code>), donc le contenu sur le point d'être committé.</p>
 
-      <h3>Créez un fichier <code>app.py</code> propre</h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">python — app.py</span></div>
-        <pre><span class="kw">from</span> flask <span class="kw">import</span> Flask, jsonify
+  <h3>2.2 Tester le blocage</h3>
+  <p>Ajoutez une nouvelle clé fictive dans <code>app.py</code> :</p>
+  <pre>STRIPE_KEY = "sk_live_4eC39HqLyjWDarjtT1zdp7dc"  # fictive</pre>
+  <p>Tentez de committer :</p>
+  <pre>git add app.py
+git commit -m "Add payment integration"</pre>
 
-app <span class="op">=</span> Flask(__name__)
+  <div class="question-box">
+    <div class="q-title">Question</div>
+    <ul>
+      <li>Le commit aboutit-il ? Que se passe-t-il ? Notez le message renvoyé par le hook.</li>
+    </ul>
+  </div>
 
-<span class="op">@</span>app.route(<span class="st">"/"</span>)
-<span class="kw">def</span> <span class="fn">health</span>():
-    <span class="kw">return</span> jsonify({<span class="st">"status"</span>: <span class="st">"ok"</span>, <span class="st">"service"</span>: <span class="st">"Free Mobile Internal API"</span>})
+  <p>Retirez ensuite la ligne sans la committer.</p>
 
-<span class="kw">if</span> __name__ <span class="op">==</span> <span class="st">"__main__"</span>:
-    app.run(port=<span class="nu">5000</span>)</pre>
-      </div>
+  <div class="info-box">
+    💡 <strong>Variante recommandée en entreprise :</strong> utiliser le framework <code>pre-commit</code> avec un <code>.pre-commit-config.yaml</code> qui appelle Gitleaks. C'est plus portable — le hook est versionné et partagé par toute l'équipe.
+  </div>
 
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>git add .
-git commit -m <span class="st">"init: service Flask Free Mobile"</span></pre>
-      </div>
-    </div>
+  <!-- ÉTAPE 3 -->
+  <h2><span class="step-num">3</span> La vérité qui dérange : le secret est toujours dans l'historique</h2>
+  <p>Le hook est en place, mais les secrets de l'Étape 1 ont été commités avant que le hook n'existe.</p>
 
-    <!-- STEP 1 -->
-    <hr>
-    <div class="step" id="step1">
-      <div class="step-header">
-        <div class="step-num active">1</div>
-        <h2>Détecter un secret dans le code</h2>
-      </div>
-      <p class="step-desc">
-        Vous ajoutez une intégration à un service externe AWS et, par habitude,
-        vous mettez la clé directement dans le code.
-      </p>
+  <h3>3.1 Corriger le code actuel</h3>
+  <p>Remplacez les secrets par des variables d'environnement dans <code>app.py</code> :</p>
+  <pre>import os
 
-      <h3>Ajoutez cette ligne dans <code>app.py</code></h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">python</span></div>
-        <pre><span class="cm"># Clé fictive style AWS — NE PAS utiliser en prod</span>
-AWS_ACCESS_KEY <span class="op">=</span> <span class="st">"AKIAIOSFODNN7EXAMPLE"</span></pre>
-      </div>
+PROVISIONING_TOKEN = os.environ.get("PROVISIONING_TOKEN", "")
+JWT_SECRET         = os.environ.get("JWT_SECRET", "")
+CDR_DB_PASSWORD    = os.environ.get("CDR_DB_PASSWORD", "")
+AWS_ACCESS_KEY_ID  = os.environ.get("AWS_ACCESS_KEY_ID", "")
+MVNO_PARTNER_KEY   = os.environ.get("MVNO_PARTNER_KEY", "")</pre>
+  <p>Committez ce correctif :</p>
+  <pre>git add app.py
+git commit -m "Fix: secrets déplacés en variables d'environnement"</pre>
 
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>git add app.py
-git commit -m <span class="st">"feat: intégration service AWS"</span></pre>
-      </div>
+  <h3>3.2 Scanner tout l'historique</h3>
+  <pre>gitleaks detect --source . --verbose</pre>
+  <p>Par défaut, <code>gitleaks detect</code> parcourt l'ensemble de l'historique Git — pas seulement l'état actuel des fichiers.</p>
 
-      <h3>Lancez le scan Gitleaks</h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>gitleaks detect --source . --verbose
-echo <span class="st">"Code de sortie : $?"</span></pre>
-      </div>
+  <div class="question-box">
+    <div class="q-title">Questions</div>
+    <ul>
+      <li>Gitleaks trouve-t-il encore les secrets ? Dans quel commit ?</li>
+      <li>Pourtant <code>app.py</code> ne contient plus les clés. Comment l'expliquez-vous ?</li>
+    </ul>
+  </div>
 
-      <div class="questions">
-        <h4>Questions</h4>
-        <ul>
-          <li>Que détecte Gitleaks ? Notez le type de secret, le fichier et le commit incriminé.</li>
-          <li>Quel code de sortie renvoie Gitleaks ? (0 = rien trouvé, 1 = secret trouvé)</li>
-        </ul>
-      </div>
+  <!-- ÉTAPE 4 -->
+  <h2><span class="step-num">4</span> Remédiation : que faire face à un secret leaké ?</h2>
+  <ol style="margin:0 0 16px 20px">
+    <li style="margin-bottom:12px"><strong style="color:#fff">La première action est toujours la rotation.</strong> Un secret committé doit être considéré compromis. La seule remédiation fiable est de révoquer et régénérer la clé côté fournisseur. Supprimer du code ne dé-fuite rien.</li>
+    <li style="margin-bottom:12px"><strong style="color:#fff">Nettoyer l'historique est possible mais coûteux.</strong> Des outils comme <code>git filter-repo</code> ou BFG Repo-Cleaner permettent de purger un secret, mais ils réécrivent l'historique — tous les clones existants deviennent incohérents.</li>
+    <li><strong style="color:#fff">La prévention est la seule option vraiment économique</strong> — d'où l'intérêt du hook de l'Étape 2.</li>
+  </ol>
 
-      <div class="callout callout-tip">
-        <div class="callout-icon">💡</div>
-        <div>Ce code de sortie est exactement ce qu'utilisera un pipeline CI pour faire échouer un build automatiquement.</div>
-      </div>
-    </div>
+  <hr class="section-divider">
 
-    <!-- STEP 2 -->
-    <hr>
-    <div class="step" id="step2">
-      <div class="step-header">
-        <div class="step-num active">2</div>
-        <h2>Prévenir — bloquer le commit avant qu'il n'arrive</h2>
-      </div>
-      <p class="step-desc">
-        Détecter après coup, c'est du nettoyage. Le <strong>shift-left</strong> consiste à bloquer
-        la fuite au plus tôt : directement sur le poste du développeur, avant le commit.
-      </p>
+  <!-- LIVRABLES -->
+  <h2>Livrables attendus</h2>
+  <div class="livrable-box">
+    <ol>
+      <li>La sortie de <code>gitleaks detect</code> de l'Étape 1 (secrets détectés).</li>
+      <li>Une capture du message de blocage du commit à l'Étape 2.</li>
+      <li>La sortie de <code>gitleaks detect</code> de l'Étape 3 prouvant que les secrets persistent dans l'historique malgré le correctif.</li>
+      <li>Vos réponses aux questions des étapes 1, 2 et 3.</li>
+    </ol>
+  </div>
 
-      <h3>2.1 — Installer le pre-commit hook</h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre><span class="cm"># Créer le hook</span>
-cat &gt; .git/hooks/pre-commit &lt;&lt; <span class="st">'EOF'</span>
-<span class="cm">#!/bin/sh</span>
-gitleaks protect --staged --verbose
-EOF
+  <!-- POUR ALLER PLUS LOIN -->
+  <h2>Pour aller plus loin (optionnel)</h2>
+  <ul>
+    <li>Intégrer Gitleaks dans le pipeline CI GitHub Actions (voir <code>.github/workflows/security.yml</code>).</li>
+    <li>Tester <code>trufflehog git file://.</code> et comparer ses résultats à ceux de Gitleaks.</li>
+    <li>Mettre en place le framework <code>pre-commit</code> partagé pour toute l'équipe.</li>
+  </ul>
 
-<span class="cm"># Le rendre exécutable</span>
-chmod +x .git/hooks/pre-commit</pre>
-      </div>
+  <!-- À RETENIR -->
+  <div class="retenir">
+    <strong>À retenir —</strong> Supprimer un secret ≠ annuler la fuite. Git n'oublie rien. Une fois poussé, un secret est compromis : on le révoque, on ne se contente pas de le supprimer. Le meilleur secret leaké est celui qui n'a jamais quitté le poste du développeur — grâce à un hook.
+  </div>
 
-      <div class="callout callout-info">
-        <div class="callout-icon">ℹ</div>
-        <div><code>gitleaks protect --staged</code> analyse uniquement ce qui est en stage (git add), c'est-à-dire le contenu sur le point d'être committé.</div>
-      </div>
-
-      <h3>2.2 — Tester le blocage</h3>
-      <p class="step-desc">Ajoutez une nouvelle clé fictive dans <code>app.py</code> :</p>
-
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">python</span></div>
-        <pre>STRIPE_KEY <span class="op">=</span> <span class="st">"LAB_sk_live_4eC39HqLyjWDarjtT1zdp7dc"</span>  <span class="cm"># clé fictive</span></pre>
-      </div>
-
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>git add app.py
-git commit -m <span class="st">"feat: intégration paiement"</span></pre>
-      </div>
-
-      <div class="questions">
-        <h4>Question</h4>
-        <ul>
-          <li>Le commit aboutit-il ? Quel message le hook renvoie-t-il ?</li>
-        </ul>
-      </div>
-
-      <div class="callout callout-tip">
-        <div class="callout-icon">💡</div>
-        <div>
-          <strong>Variante recommandée en entreprise</strong> : utiliser le framework
-          <code>pre-commit</code> avec un <code>.pre-commit-config.yaml</code>.
-          Le hook est versionné et partagé par toute l'équipe, contrairement à
-          <code>.git/hooks/</code> qui reste local.
-        </div>
-      </div>
-
-      <p style="margin-top:12px;font-size:.82rem;color:var(--muted)">
-        Retirez la ligne fautive avant de continuer — sans la committer.
-      </p>
-    </div>
-
-    <!-- STEP 3 -->
-    <hr>
-    <div class="step" id="step3">
-      <div class="step-header">
-        <div class="step-num active">3</div>
-        <h2>La vérité qui dérange — le secret est toujours dans l'historique</h2>
-      </div>
-      <p class="step-desc">
-        Le hook est en place, le code actuel est propre. Mais la clé de l'Étape 1
-        a bel et bien été committée. Voyons ce que Git a retenu.
-      </p>
-
-      <h3>3.1 — Corriger le code actuel</h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">python</span></div>
-        <pre><span class="kw">import</span> os
-AWS_ACCESS_KEY <span class="op">=</span> os.environ.get(<span class="st">"AWS_ACCESS_KEY"</span>, <span class="st">""</span>)</pre>
-      </div>
-
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>git add app.py
-git commit -m <span class="st">"fix: clé AWS chargée depuis variable d'environnement"</span></pre>
-      </div>
-
-      <h3>3.2 — Scanner tout l'historique</h3>
-      <div class="code-block">
-        <div class="code-header"><span class="code-lang">bash</span></div>
-        <pre>gitleaks detect --source . --verbose</pre>
-      </div>
-
-      <div class="callout callout-info">
-        <div class="callout-icon">ℹ</div>
-        <div>Par défaut, <code>gitleaks detect</code> parcourt <strong>l'ensemble de l'historique Git</strong>, pas seulement le dernier état des fichiers.</div>
-      </div>
-
-      <div class="questions">
-        <h4>Questions</h4>
-        <ul>
-          <li>Gitleaks trouve-t-il encore un secret ? Dans quel commit ?</li>
-          <li>Le fichier <code>app.py</code> actuel ne contient plus la clé. Comment l'expliquez-vous ?</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- STEP 4 -->
-    <hr>
-    <div class="step" id="step4">
-      <div class="step-header">
-        <div class="step-num active">4</div>
-        <h2>Remédiation — que faire face à un secret leaké ?</h2>
-      </div>
-
-      <h3>① Rotation du secret — action prioritaire</h3>
-      <p class="step-desc">
-        Un secret committé puis poussé est <strong>compromis</strong>, qu'il soit encore présent ou non dans le code.
-        La seule remédiation fiable est de <strong>révoquer et régénérer la clé</strong> côté fournisseur.
-        Supprimer le fichier ne dé-fuite rien.
-      </p>
-
-      <h3>② Nettoyage de l'historique — possible mais coûteux</h3>
-      <p class="step-desc">
-        Des outils comme <code>git filter-repo</code> ou <code>BFG Repo-Cleaner</code> permettent
-        de purger un secret de tout l'historique. Mais ils <strong>réécrivent l'historique</strong> :
-        tous les clones existants deviennent incohérents. C'est de la limitation de dégâts, pas une solution.
-      </p>
-
-      <h3>③ Prévention — la seule option vraiment économique</h3>
-      <p class="step-desc">
-        Le pre-commit hook de l'Étape 2 + un pipeline CI avec Gitleaks = aucun secret ne quitte le poste
-        du développeur. C'est ce que vous avez mis en place.
-      </p>
-
-      <div class="callout callout-warn">
-        <div class="callout-icon">⚠</div>
-        <div><strong>Règle d'or :</strong> Supprimer un secret ≠ annuler la fuite. Git n'oublie rien. On révoque, on ne supprime pas.</div>
-      </div>
-    </div>
-
-    <!-- DELIVERABLES -->
-    <hr>
-    <div class="deliverables" id="deliverables">
-      <h3>Livrables attendus</h3>
-      <div class="deliverable-item">
-        <div class="check"></div>
-        Sortie de <code>gitleaks detect</code> de l'Étape 1 (secret détecté + commit).
-      </div>
-      <div class="deliverable-item">
-        <div class="check"></div>
-        Capture du message de blocage du commit à l'Étape 2.
-      </div>
-      <div class="deliverable-item">
-        <div class="check"></div>
-        Sortie de <code>gitleaks detect</code> de l'Étape 3 (secret persistant dans l'historique).
-      </div>
-      <div class="deliverable-item">
-        <div class="check"></div>
-        Réponses aux questions des étapes 1, 2 et 3.
-      </div>
-    </div>
-
-    <!-- FURTHER -->
-    <hr>
-    <div id="further">
-      <h2>Pour aller plus loin</h2>
-      <div class="callout callout-tip" style="margin-top:16px">
-        <div class="callout-icon">🚀</div>
-        <div>
-          Intégrer Gitleaks dans le pipeline CI de ce projet (voir <code>.github/workflows/security.yml</code>).<br>
-          Tester <code>trufflehog git file://.</code> et comparer ses résultats à Gitleaks.<br>
-          Mettre en place le framework <code>pre-commit</code> partagé pour toute l'équipe.
-        </div>
-      </div>
-    </div>
-
-    <!-- FOOTER -->
-    <div class="footer">
-      <span>Free Mobile — DevSecOps Training · Lab 1</span>
-      <span>Formateur : Yacine Romdhani &nbsp;·&nbsp; <a href="/">← Accueil</a></span>
-    </div>
-
-  </main>
+  <div class="footer">
+    Free Mobile — DevSecOps Lab 1 &nbsp;·&nbsp;
+    <a href="/">Accueil</a> &nbsp;·&nbsp;
+    <a href="https://github.com/RomdhaniYacine/Lab1" target="_blank">GitHub</a>
+  </div>
 </div>
-
-<script>
-  // Sidebar active on scroll
-  const sections = document.querySelectorAll('[id]')
-  const links = document.querySelectorAll('.sidebar a')
-  window.addEventListener('scroll', () => {
-    let current = ''
-    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id })
-    links.forEach(l => {
-      l.classList.remove('active')
-      if (l.getAttribute('href') === '#' + current) l.classList.add('active')
-    })
-  })
-</script>
 </body>
 </html>""")
-
 
 
 if __name__ == "__main__":
