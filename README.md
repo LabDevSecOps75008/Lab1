@@ -69,7 +69,6 @@ Gitleaks détecte les secrets en comparant le code à des patterns regex connus.
 
 ```bash
 gitleaks detect --source . --verbose
-echo "Exit code: $?"
 ```
 
 > `0` = aucun secret détecté &nbsp;|&nbsp; `1` = secret(s) détecté(s)
