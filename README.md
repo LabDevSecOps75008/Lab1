@@ -147,7 +147,7 @@ pre-commit install
 **Tester le blocage :**
 
 ```bash
-echo 'TOKEN = "test-secret-value-fakek3y-12345abc"' >> test_hook.py
+echo 'AWS_ACCESS_KEY_ID = "test-secret-value-fakek3y-12345abc"' >> test_hook.py
 git add test_hook.py
 git commit -m "test: vérification du hook"
 # → Le commit doit être bloqué par Gitleaks
